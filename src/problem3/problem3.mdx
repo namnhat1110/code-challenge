@@ -1,0 +1,90 @@
+### There are several computational inefficiencies and anti-patterns in the given code block:
+
+1. **Redundant Object Destructuring:**
+
+   - In the `<WalletPage/>` component, the `children` prop is destructured from props, but it's not used anywhere in the component. This destructuring is unnecessary and can be removed.
+
+2. **Inefficient Filtering and Sorting:**
+
+   - In the sortedBalances calculation, the filtering logic is incorrect. The condition if `(lhsPriority > -99)` is used, but `lhsPriority` is never defined. It seems like it should be `balancePriority`.
+   - The `sortedBalances` function is incomplete and doesn't handle cases where leftPriority and rightPriority are equal. This can lead to unpredictable results and incorrect sorting. Moreover, since we are sorting by number, we can simplified it by using substraction
+
+3. **Redundant Mapping:**
+
+   - The `formattedBalances` array is created by mapping over sortedBalances and adding a formatted property to each balance. However, this mapping operation is redundant because the formatted property is already added in the subsequent mapping operation when creating the rows array. It can be removed to improve efficiency.
+
+4. **Incorrect Dependency in useMemo:**
+
+   - The useMemo hook is used to memoize the sorted balances array (sortedBalances). The `getPriority` function is used within the useMemo callback, but it's not listed as a dependency, meanwhile `prices` is not used but listed as dependency. This can lead to stale data or incorrect sorting.
+
+5. **Index as Key:**
+   - In the rows mapping, the index parameter is used as the key prop for the `<WalletRow/>` component. Using the array index as the key can cause issues with component reordering and should be avoided if the order of elements can change.
+
+---
+
+### This is my refactored version of the code, addressing the identified issues:
+
+```typescript
+interface WalletBalance {
+  currency: string;
+  amount: number;
+  blockchain: string;
+}
+
+interface FormattedWalletBalance extends WalletBalance {
+  formatted: string;
+}
+
+interface Props extends BoxProps {}
+
+const WalletPage: React.FC<Props> = (props: Props) => {
+  const balances = useWalletBalances();
+  const prices = usePrices();
+
+  const getPriority = (blockchain: string): number => {
+    switch (blockchain) {
+      case "Osmosis":
+        return 100;
+      case "Ethereum":
+        return 50;
+      case "Arbitrum":
+        return 30;
+      case "Zilliqa":
+        return 20;
+      case "Neo":
+        return 20;
+      default:
+        return -99;
+    }
+  };
+
+  const sortedBalances = useMemo(() => {
+    return balances
+      .filter((balance: WalletBalance) => {
+        const balancePriority = getPriority(balance.blockchain);
+        return balancePriority > -99 && balance.amount <= 0;
+      })
+      .sort((lhs: WalletBalance, rhs: WalletBalance) => {
+        const leftPriority = getPriority(lhs.blockchain);
+        const rightPriority = getPriority(rhs.blockchain);
+        return rightPriority - leftPriority;
+      });
+  }, [balances, getPriority]);
+
+  const rows = sortedBalances.map((balance: WalletBalance, index: number) => {
+    const usdValue = prices[balance.currency] * balance.amount;
+    const formattedAmount = balance.amount.toFixed();
+    return (
+      <WalletRow
+        className={classes.row}
+        key={index}
+        amount={balance.amount}
+        usdValue={usdValue}
+        formattedAmount={formattedAmount}
+      />
+    );
+  });
+
+  return <div {...props}>{rows}</div>;
+};
+```
