@@ -71,13 +71,13 @@ const WalletPage: React.FC<Props> = (props: Props) => {
       });
   }, [balances, getPriority]);
 
-  const rows = sortedBalances.map((balance: WalletBalance, index: number) => {
+  const rows = sortedBalances.map((balance: WalletBalance) => {
     const usdValue = prices[balance.currency] * balance.amount;
     const formattedAmount = balance.amount.toFixed();
     return (
       <WalletRow
         className={classes.row}
-        key={index}
+        key={balance.blockchain} // assuming blockchain is unique
         amount={balance.amount}
         usdValue={usdValue}
         formattedAmount={formattedAmount}
